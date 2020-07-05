@@ -11,17 +11,21 @@ import com.marand.myplaces.util.Resource;
 public class MyViewModel extends AndroidViewModel {
     private static final String TAG = MyViewModel.class.getSimpleName();
     private LiveData<Resource<Place>> place;
+    private MyRepository myRepository;
 
-    public MyViewModel(@NonNull Application application, String clientId, String clientSecret, int version,
-                       int limit, int offset, String ll) {
-
+    public MyViewModel(@NonNull Application application) {
         super(application);
-        MyRepository myRepository = MyRepository.getInstance();
+        myRepository = MyRepository.getInstance();
+    }
+
+    public LiveData<Resource<Place>> getPlace(String clientId, String clientSecret, int version,
+                                              int limit, int offset, String ll) {
+
         place = myRepository.makeReactiveQuery(clientId, clientSecret, version, limit, offset, ll);
+        return place;
     }
 
     public LiveData<Resource<Place>> getPlace() {
         return place;
     }
-
 }

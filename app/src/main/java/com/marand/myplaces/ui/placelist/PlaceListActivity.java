@@ -5,7 +5,6 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
-import androidx.lifecycle.ViewModelProvider;
 import androidx.lifecycle.ViewModelProviders;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -28,8 +27,6 @@ import com.marand.myplaces.model.Item;
 import com.marand.myplaces.util.Constants;
 import com.marand.myplaces.util.Utils;
 import com.marand.myplaces.viewmodel.MyViewModel;
-import com.marand.myplaces.viewmodel.MyViewModelFactory;
-
 import java.util.ArrayList;
 
 public class PlaceListActivity extends AppCompatActivity {
@@ -204,25 +201,23 @@ public class PlaceListActivity extends AppCompatActivity {
 
     private void sendRequest() {
         String ll = mCurrent_latitude+","+mCurrent_longitude;
-        myViewModel = new ViewModelProvider(placeListActivity, new MyViewModelFactory(
-                getApplication(),
-                Constants.CLIENT_ID,
+        myViewModel.getPlace(Constants.CLIENT_ID,
                 Constants.CLIENT_SECRET,
                 Constants.FOURSQUARE_VERSION_NUMBER,
                 Constants.LIMIT_COUNT,
                 mOffset,
-                ll)).get(MyViewModel.class);
-
-        myViewModel.getPlace().observe(placeListActivity, placeResource -> {
+                ll).observe(placeListActivity, placeResource -> {
             if (placeResource != null) {
                 switch (placeResource.status) {
                     case SUCCESS: {
                         mProgress_bar.setVisibility(View.GONE);
                         isMorePlaces = Constants.LIMIT_COUNT <= placeResource.data.getResponse().getGroups().get(0).getItems().size();
-                        mPlace_adapter.setItems(placeResource.data.getResponse().getGroups().get(0).getItems());
-                        // This below part is for UI updating!
-                        /*Parcelable parcelable = mPlace_recycler_view.getLayoutManager().onSaveInstanceState();
-                        mPlace_recycler_view.getLayoutManager().onRestoreInstanceState(parcelable);*/
+                        if (mOffset == 0) {
+                            mPlace_list = placeResource.data.getResponse().getGroups().get(0).getItems();
+                        } else {
+                            mPlace_list.addAll(placeResource.data.getResponse().getGroups().get(0).getItems());
+                        }
+                        mPlace_adapter.setItems(mPlace_list);
                         break;
                     }
                     case LOADING: {
