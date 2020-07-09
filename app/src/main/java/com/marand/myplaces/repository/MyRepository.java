@@ -1,5 +1,7 @@
 package com.marand.myplaces.repository;
 
+import android.util.Log;
+
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.LiveDataReactiveStreams;
 import androidx.lifecycle.MediatorLiveData;
@@ -10,7 +12,7 @@ import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 
 public class MyRepository {
-    private static final String TAG = MyRepository.class.getSimpleName();
+    private static final String TAG = "MyRepository";
     private static MyRepository instance;
     private MediatorLiveData<Resource<Place>> place;
 
@@ -33,6 +35,7 @@ public class MyRepository {
                         return place;
                     }).map((Function<Place, Resource<Place>>) place -> {
                         if (place.getId() == -1) {
+                            Log.e(TAG, "makeReactiveQuery: "+ place.toString());
                             return Resource.error("Some error happened!", null);
                         }
                         return Resource.success(place);

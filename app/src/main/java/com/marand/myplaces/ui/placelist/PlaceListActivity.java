@@ -8,6 +8,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.lifecycle.ViewModelProviders;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -21,12 +22,14 @@ import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
+
 import com.google.android.material.snackbar.Snackbar;
 import com.marand.myplaces.R;
 import com.marand.myplaces.model.Item;
 import com.marand.myplaces.util.Constants;
 import com.marand.myplaces.util.Utils;
 import com.marand.myplaces.viewmodel.MyViewModel;
+
 import java.util.ArrayList;
 
 public class PlaceListActivity extends AppCompatActivity {
@@ -34,7 +37,7 @@ public class PlaceListActivity extends AppCompatActivity {
     private PlaceListActivity placeListActivity;
     private Utils utils;
     private int mOffset = 0;
-    private boolean isMorePlaces;
+    private boolean isMorePlaces = true;
     private String mCurrent_latitude, mCurrent_longitude;
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 0;
     private static final int LOCATION_SETTINGS_REQUEST_CODE = 1;
@@ -45,9 +48,12 @@ public class PlaceListActivity extends AppCompatActivity {
     private PlaceAdapter mPlace_adapter;
     private ArrayList<Item> mPlace_list;
     private MyViewModel myViewModel;
+    private int visibleThreshold = 10;
+    private int previousItem = 0;
+    private LinearLayoutManager linearLayoutManager;
 
     @NonNull
-    private String[] mLocation_permissions = new String[] {
+    private String[] mLocation_permissions = new String[]{
             Manifest.permission.ACCESS_FINE_LOCATION
     };
 
@@ -68,15 +74,29 @@ public class PlaceListActivity extends AppCompatActivity {
             @Override
             public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
                 super.onScrolled(recyclerView, dx, dy);
-                if (dy > 0 && isMorePlaces) {
-                    mOffset = Constants.LIMIT_COUNT + mOffset;
-                    isMorePlaces = false;
-                    myViewModel.getPlace().removeObservers(placeListActivity);
-                    sendRequest();
+                int totalCount = recyclerView.getAdapter().getItemCount();
+                int visibleCount = recyclerView.getChildCount();
+                int firstVisibleItem = linearLayoutManager.findFirstVisibleItemPosition();
+                if (dy > 0) {
+                    if (isMorePlaces) {
+                        if (totalCount < previousItem) {
+                            isMorePlaces = false;
+                            previousItem = totalCount;
+                        }
+//                        mOffset = Constants.LIMIT_COUNT + mOffset;
+                    } if(isMorePlaces && (totalCount-visibleCount)<=(firstVisibleItem+visibleThreshold)) {
+                        isMorePlaces = true;
+                        mOffset++;
+                        myViewModel.getPlace().removeObservers(placeListActivity);
+                        sendRequest();
+
+
+                    }
                 }
             }
         });
     }
+
 
 // -------------------------------------------------------------------------------------------------
 
@@ -85,8 +105,10 @@ public class PlaceListActivity extends AppCompatActivity {
         mPlace_recycler_view = findViewById(R.id.place_recycler_view);
         mProgress_bar = findViewById(R.id.progress_bar);
     }
+
     private void initPlaceRecyclerView() {
-        mPlace_recycler_view.setLayoutManager(new LinearLayoutManager(placeListActivity));
+        linearLayoutManager=new LinearLayoutManager(placeListActivity,RecyclerView.VERTICAL,false);
+        mPlace_recycler_view.setLayoutManager(linearLayoutManager);
         mPlace_adapter = new PlaceAdapter();
         mPlace_recycler_view.setAdapter(mPlace_adapter);
     }
@@ -97,6 +119,7 @@ public class PlaceListActivity extends AppCompatActivity {
                 ActivityCompat.checkSelfPermission(placeListActivity, Manifest.permission.ACCESS_COARSE_LOCATION)
                         == PackageManager.PERMISSION_GRANTED;
     }
+
     private void checkSettings() {
         // Is GPS enabled?
         final boolean gpsEnabled = utils.locationTrackingEnabled(placeListActivity);
@@ -113,6 +136,7 @@ public class PlaceListActivity extends AppCompatActivity {
             showDialog(internetIntent, WIFI_SETTINGS_REQUEST_CODE, getString(R.string.wireless_off));
         }
     }
+
     private void requestLocationPermission() {
         if (locationPermissionHasBeenGranted()) {
             // Permission has been granted, launch setup
@@ -140,6 +164,7 @@ public class PlaceListActivity extends AppCompatActivity {
         }
         return locationManager.getLastKnownLocation(locationProvider);
     }
+
     private String getLocationProvider(@NonNull LocationManager manager) {
         String locationProvider = null;
         if (manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
@@ -149,6 +174,7 @@ public class PlaceListActivity extends AppCompatActivity {
         }
         return locationProvider;
     }
+
     private void listenForLocationUpdates() {
         final LocationManager locationManager = (LocationManager) placeListActivity.getSystemService(LOCATION_SERVICE);
         if (ActivityCompat.checkSelfPermission(placeListActivity, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -160,22 +186,26 @@ public class PlaceListActivity extends AppCompatActivity {
                 60000,
                 10,
                 new LocationListener() {
-            @Override
-            public void onLocationChanged(Location location) {
-                locationManager.removeUpdates(this);
-                getCoordinates();
-            }
+                    @Override
+                    public void onLocationChanged(Location location) {
+                        locationManager.removeUpdates(this);
+                        getCoordinates();
+                    }
 
-            @Override
-            public void onStatusChanged(String provider, int status, Bundle extras) {}
+                    @Override
+                    public void onStatusChanged(String provider, int status, Bundle extras) {
+                    }
 
-            @Override
-            public void onProviderEnabled(String provider) {}
+                    @Override
+                    public void onProviderEnabled(String provider) {
+                    }
 
-            @Override
-            public void onProviderDisabled(String provider) {}
-        });
+                    @Override
+                    public void onProviderDisabled(String provider) {
+                    }
+                });
     }
+
     private void getCoordinates() {
         Location location = getCurrentLocation();
         if (location != null) {
@@ -183,7 +213,7 @@ public class PlaceListActivity extends AppCompatActivity {
             double longi = location.getLongitude();
             mCurrent_latitude = String.valueOf(lat);
             mCurrent_longitude = String.valueOf(longi);
-            Log.e(TAG, "got Coordinates: "+ mCurrent_longitude + " // "+mCurrent_latitude);
+            Log.e(TAG, "got Coordinates: " + mCurrent_longitude + " // " + mCurrent_latitude);
             sendRequest();
         } else {
             Toast.makeText(placeListActivity, getString(R.string.error_location), Toast.LENGTH_SHORT).show();
@@ -200,7 +230,7 @@ public class PlaceListActivity extends AppCompatActivity {
     }
 
     private void sendRequest() {
-        String ll = mCurrent_latitude+","+mCurrent_longitude;
+        String ll = mCurrent_latitude + "," + mCurrent_longitude;
         myViewModel.getPlace(Constants.CLIENT_ID,
                 Constants.CLIENT_SECRET,
                 Constants.FOURSQUARE_VERSION_NUMBER,
